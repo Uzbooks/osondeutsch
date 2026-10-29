@@ -1,4 +1,27 @@
-<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style><script src="https://telegram.org/js/telegram-web-app.js"></script>
+<script>
+(function () {
+  var tg = window.Telegram && Telegram.WebApp;
+  if (!tg || !tg.initData) return; // faqat Telegram ichida ishlaydi
+  tg.ready();
+  tg.expand(); // to'liq ekranda ochiladi
+  function theme() {
+    document.documentElement.setAttribute("data-theme", tg.colorScheme === "dark" ? "dark" : "light");
+  }
+  theme();
+  tg.onEvent("themeChanged", theme);
+  function back() {
+    var h = location.hash;
+    if (h && h !== "#bosh") tg.BackButton.show(); else tg.BackButton.hide();
+  }
+  tg.BackButton.onClick(function () {
+    if (history.length > 1) history.back(); else location.hash = "#bosh";
+  });
+  window.addEventListener("hashchange", back);
+  back();
+})();
+</script>
+</head><body>
 <title>OsonDeutsch</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
