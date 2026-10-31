@@ -316,6 +316,9 @@ main>.flagframe{margin-top:10px}
 .item.locked .num{background:var(--soft)}
 .mx-stats{display:flex;gap:18px;flex-wrap:wrap;flex-direction:row}
 .mx-ctrl{display:grid;gap:8px}
+.pgnav{display:flex;align-items:center;justify-content:center;gap:12px;margin:14px 0 4px}
+.pgnav .pgnum{font-weight:700;font-variant-numeric:tabular-nums;min-width:56px;text-align:center}
+#vtopics[hidden]+.pgnav{display:none}
 .pl{display:grid;gap:14px;max-width:720px}
 .pl-q{font-size:1.25rem;font-weight:700}
 .pl-opts{display:grid;gap:8px}
@@ -5231,7 +5234,7 @@ function vPron(){
    '<section class="pr-list">'+prSet.map(function(x,i){return '<article class="pr" id="pr'+i+'"><div class="pr-t"><span class="de">'+esc(x.t)+'</span><span class="muted small">'+esc(x.uz)+'</span></div>'+
      '<div class="pr-act">'+(sup?'<button type="button" class="btn sm pr-mic" data-i="'+i+'">🎤 Aytish</button>':'')+'</div><div class="pr-res small" id="prr'+i+'"></div></article>';}).join("")+'</section>'+
    '<p class="muted small">Ovoz brauzer xizmati orqali matnga aylantiriladi; OsonTillar ovozingizni saqlamaydi. Natija taxminiy: shovqin va mikrofon sifati taʼsir qiladi.</p>';
-  addSay(app);
+  addSay(app);pagify(app.querySelector(".pr-list"),4,"p"+LANG);
   document.getElementById("pr-new").onclick=function(){prSet=prItems();vPron();};
   app.querySelectorAll(".pr-mic").forEach(function(b){b.onclick=function(){prListen(+b.dataset.i,b);};});
 }
@@ -5324,7 +5327,17 @@ function gTopicSet(g){var ex=gExamples(g),P=genPools(g.lv),qs=[];
   var own={W:P.W,E:ex.length>=4?ex:ex.concat(P.E)};
   ["sent","ord","sentL","sent","ord","cloze","sent","ord"].forEach(function(t){var q=genQ(own,t);if(q)qs.push(q);});
   shuffle(g.q||[]).slice(0,2).forEach(function(q){qs.push(q);});return shuffle(qs).slice(0,8);}
-/* "4 open at a time": everything already done stays open, plus the next 4 not yet done; the rest is locked */
+/* Paging: long lists show a few items at a time with ← Oldingi / Keyingi → buttons (nothing is locked).
+   Items are only hidden, so quizzes and audio on the page keep working; the page index is remembered per list. */
+var PGS={};
+function pagify(el,per,key){
+  if(!el)return;var kids=[].slice.call(el.children);if(kids.length<=per)return;
+  var pages=Math.ceil(kids.length/per),p=Math.min(PGS[key]||0,pages-1),nav=document.createElement("div");nav.className="pgnav";
+  function draw(){kids.forEach(function(k,i){k.hidden=Math.floor(i/per)!==p;});PGS[key]=p;
+    nav.innerHTML='<button type="button" class="btn ghost sm" data-d="-1"'+(p===0?' disabled':'')+'>← Oldingi</button><span class="pgnum">'+(p+1)+' / '+pages+'</span><button type="button" class="btn sm" data-d="1"'+(p===pages-1?' disabled':'')+'>Keyingi →</button>';
+    nav.querySelectorAll("[data-d]").forEach(function(b){b.onclick=function(){p=Math.max(0,Math.min(pages-1,p+(+b.dataset.d)));draw();el.scrollIntoView({behavior:"smooth",block:"start"});};});}
+  el.parentNode.insertBefore(nav,el.nextSibling);draw();
+}
 function openSet(list,isDone){var open={},left=4;list.forEach(function(x,i){if(isDone(x))open[i]=1;else if(left>0){open[i]=1;left--;}});return open;}
 function vtDone(t){S.vt=S.vt||{};return (S.vt[t.id]||0)>=60||vKnown(t)>=Math.ceil(t.w.length*0.6);}
 
@@ -5384,16 +5397,14 @@ function vGrammar(l){
   l=l||"A1";var list=G.filter(function(g){return g.lv===l;});
   app.innerHTML='<section class="section-head"><span class="eyebrow">Grammatika</span><h2>'+l+' darajasi grammatikasi</h2><p class="muted">'+esc(LVI[l].desc)+' Mavzuni oʻqing, misollarni tinglang va testni kamida 60% bilan topshiring.</p></section>'+levelRail(l,"grammatika")+
   '<div class="row between"><span class="muted small">'+gDone(l)+' / '+list.length+' mavzu yakunlangan</span></div><div class="list">'+
-  (function(){var op=openSet(list,function(g){return (S.g[g.id]||0)>=60;});return list.map(function(g,i){var v=S.g[g.id];
-    if(!op[i])return '<div class="item locked" aria-disabled="true"><span class="num">🔒</span><span style="min-width:0"><span class="t">'+esc(g.t)+'</span><span class="s">Oldingi mavzularni 60% bilan bajaring — keyin ochiladi</span></span></div>';
+  (function(){return list.map(function(g,i){var v=S.g[g.id];
     return '<a class="item'+(v>=60?" done":"")+'" href="#g-'+g.id+'"><span class="num">'+(i+1)+'</span><span style="min-width:0"><span class="t">'+esc(g.t)+'</span><span class="s">'+esc(g.de)+'</span></span>'+chip(v)+'</a>';}).join("");})()+'</div>'+
   '<div class="row"><a class="btn" href="#mashq">🧩 Cheksiz mashq</a></div>';
+  pagify(app.querySelector(".list"),4,"g"+LANG+l);
 }
 function vGTopic(id){
   var i=G.findIndex(function(g){return g.id===id;});if(i<0)return vGrammar();
   var g=G[i],pv=G[i-1],nx=G[i+1];
-  var lvl=G.filter(function(x){return x.lv===g.lv;}),op=openSet(lvl,function(x){return (S.g[x.id]||0)>=60;});
-  if(!op[lvl.indexOf(g)]){app.innerHTML='<section class="card"><h2>🔒 Bu mavzu hali yopiq</h2><p class="muted">Avval shu darajadagi ochiq mavzularning testini kamida 60% bilan topshiring — keyin navbatdagisi ochiladi.</p><div class="row"><a class="btn" href="#grammatika-'+g.lv+'">'+g.lv+' mavzulariga qaytish</a></div></section>';return;}
   app.innerHTML='<div class="row"><a class="btn ghost sm" href="#grammatika-'+g.lv+'">← '+g.lv+' mavzulari</a></div>'+
   '<article class="doc"><div class="row" style="gap:8px"><span class="lvtag">'+g.lv+'</span><span class="eyebrow">'+esc(g.de)+'</span>'+((S.g[g.id]||0)>=60?'<span class="chip ok">Yakunlandi</span>':'')+'</div><h1>'+esc(g.t)+'</h1>'+g.b()+'</article>'+
   '<section class="section-head"><span class="eyebrow">Mashq</span><h2>Oʻzingizni tekshiring</h2></section><div id="qh"></div>'+
@@ -5466,7 +5477,7 @@ function vDialogs(){
     return '<article class="dlg"><div class="dlg-h"><span class="dlg-ic" aria-hidden="true">'+m[1]+'</span><h3>'+m[2]+'</h3><span class="chip">'+m[3]+'</span></div>'+
     '<div class="row"><button class="btn sm" type="button" data-dplay="'+m[0]+'">▶ Tinglash</button><button class="btn ghost sm" type="button" data-dslow="'+m[0]+'">Sekin</button></div>'+
     '<ol class="dlg-lines">'+L.map(function(x){var me=x[0]==="B";return '<li class="'+(me?"me":"")+'"><span class="who">'+(me?roles[1]:roles[0])+'</span><span class="de">'+esc(x[1])+'</span>'+(hideUz?'':'<span class="uz muted small">'+esc(x[2])+'</span>')+'</li>';}).join("")+'</ol></article>';}).join("")+'</section>';
-  addSay(app);
+  addSay(app);pagify(app.querySelector(".dlg-list"),4,"d"+LANG);
   function txt(id){return D[id].map(function(x){return x[0]+": "+x[1];}).join(" — ");}
   app.querySelectorAll("[data-dplay]").forEach(function(b){b.onclick=function(){say(txt(b.dataset.dplay));};});
   app.querySelectorAll("[data-dslow]").forEach(function(b){b.onclick=function(){say(txt(b.dataset.dslow),0.7);};});
@@ -5480,7 +5491,7 @@ function vMistakes(){
   '<section class="mist-list">'+E.map(function(x,i){return '<article class="mist"><div class="mist-h"><span class="mist-n">'+(i+1)+'</span><h3>'+esc(x[0])+'</h3></div>'+
     '<p class="mist-bad"><span aria-hidden="true">✗</span><s>'+esc(x[1])+'</s></p><p class="mist-good"><span aria-hidden="true">✓</span><span class="de">'+esc(x[2])+'</span></p><p class="muted small">'+esc(x[3])+'</p></article>';}).join("")+'</section>'+
   '<section class="section-head"><span class="eyebrow">Mashq</span><h2>Qaysi variant toʻgʻri?</h2></section><div id="mq"></div>';
-  addSay(app);
+  addSay(app);pagify(app.querySelector(".mist-list"),4,"m"+LANG);
   var items=E.map(function(x){return {q:x[0]+": qaysi variant toʻgʻri?",o:[x[2],x[1]],e:x[3]};});
   runQuiz(document.getElementById("mq"),items,{onDone:function(p){best(S.p,k,p);}});
 }
@@ -5534,9 +5545,9 @@ function vVocab(){
   app.innerHTML='<section class="section-head"><span class="eyebrow">Lugʻat</span><h2>Rasm va ovoz bilan soʻz yodlang</h2><p class="muted">Har bir soʻz '+(LANG==="de"?"artikli, koʻplik shakli":LX.formLabel+" bilan")+', oʻzbekcha tarjimasi va misol gapi bilan. «Bilaman» deb belgilangan soʻzlar saqlanadi.</p></section>'+
   '<div class="card" style="gap:8px"><div class="row between"><b>Yodlangan soʻzlar</b><span style="font-variant-numeric:tabular-nums"><b>'+kn+'</b> / '+tot+'</span></div><div class="meter"><i style="width:'+(kn/tot*100)+'%"></i></div></div>'+
   srCard()+'<div class="search"><label for="vs">Soʻz qidirish ('+LX.adj+' yoki oʻzbekcha)<input id="vs" type="search" autocomplete="off" placeholder="masalan: Apfel yoki olma"></label></div><div class="hits" id="vhits" aria-live="polite"></div>'+
-  '<div class="grid" id="vtopics">'+(function(){var srt=VO.slice().sort(function(a,b){return LV.indexOf(a.lv)-LV.indexOf(b.lv);}),op=openSet(srt,vtDone);return srt.map(function(t,ii){var k=vKnown(t);
-  if(!op[ii])return '<div class="card topic locked" aria-disabled="true"><span class="pic" aria-hidden="true">🔒</span><span style="min-width:0"><span class="row" style="gap:6px"><b>'+esc(t.t)+'</b><span class="lvtag">'+t.lv+'</span></span><span class="muted small">Ochiq mavzulardan birida 60% toʻplang</span></span></div>';
+  '<div class="grid" id="vtopics">'+(function(){var srt=VO.slice().sort(function(a,b){return LV.indexOf(a.lv)-LV.indexOf(b.lv);});return srt.map(function(t,ii){var k=vKnown(t);
   return '<a class="card topic" href="#v-'+t.id+'"><span class="pic" aria-hidden="true">'+t.pic+'</span><span style="min-width:0"><span class="row" style="gap:6px"><b>'+esc(t.t)+'</b><span class="lvtag">'+t.lv+'</span></span><span class="muted small">'+esc(t.de)+' · '+k+' / '+t.w.length+' soʻz'+(vtDone(t)?' · ✅':'')+'</span></span></a>';}).join("");})()+'</div>';
+  pagify(document.getElementById("vtopics"),4,"vt"+LANG);
   var inp=document.getElementById("vs"),hits=document.getElementById("vhits"),tp=document.getElementById("vtopics");
   try{var q0=sessionStorage.getItem("dy-vs");if(q0){inp.value=q0;}}catch(e){}
   function run(){var q=norm(inp.value);try{sessionStorage.setItem("dy-vs",inp.value);}catch(e){}
@@ -5549,8 +5560,7 @@ function vVocab(){
 }
 function vTopic(id){
   var t=VO.find(function(x){return x.id===id;});if(!t)return vVocab();
-  var srt=VO.slice().sort(function(a,b){return LV.indexOf(a.lv)-LV.indexOf(b.lv);}),opv=openSet(srt,vtDone);
-  if(!opv[srt.indexOf(t)]){app.innerHTML='<section class="card"><h2>🔒 Bu mavzu hali yopiq</h2><p class="muted">Ochiq lugʻat mavzularidan birida «Mashq» boʻlimini 60% bilan bajaring yoki soʻzlarning 60% ini «Bilaman» deb belgilang.</p><div class="row"><a class="btn" href="#lugat">Lugʻatga qaytish</a></div></section>';return;}
+
   app.innerHTML='<div class="row"><a class="btn ghost sm" href="#lugat">← Barcha mavzular</a></div>'+
   '<section class="section-head"><div class="row" style="gap:8px"><span class="lvtag">'+t.lv+'</span><span class="eyebrow">'+esc(t.de)+'</span></div><h1>'+t.pic+' '+esc(t.t)+'</h1><p class="muted">'+vKnown(t)+' / '+t.w.length+' soʻz yodlangan</p></section>'+
   '<div class="subtabs" role="group" aria-label="Rejim">'+[["list","Soʻzlar"],["cards","Kartochkalar"],["pic","Rasm testi"],["write","Tinglab yozish"],["drill","🧩 Mashq"]].map(function(m){return '<button type="button" data-m="'+m[0]+'" aria-pressed="'+(vMode===m[0])+'">'+m[1]+'</button>';}).join("")+'</div><div id="vh"></div>';
@@ -5559,7 +5569,8 @@ function vTopic(id){
   if(vMode==="list")vList(h,t);else if(vMode==="cards")vCards(h,t);else if(vMode==="pic")vPic(h,t);else if(vMode==="drill")extraBlock(h,t.lv,t,function(p){S.vt=S.vt||{};best(S.vt,t.id,p);});else vWrite(h,t);
 }
 function vList(h,t){
-  h.innerHTML=voiceNote()+'<div class="wgrid">'+t.w.map(function(w,i){var k=S.v[w[1]];return '<div class="wcard'+(k?" known":"")+'"><div class="pic" aria-hidden="true">'+w[0]+'</div><div class="w"><span>'+esc(w[1])+'</span><button class="say" type="button" data-i="'+i+'" aria-label="Tinglash">'+SPK+'</button></div><span class="pl">Koʻplik: '+esc(w[2])+'</span><span class="uz">'+esc(w[3])+'</span><span class="exs">'+esc(w[4])+'</span><button class="btn '+(k?"":"ghost ")+'sm" type="button" data-k="'+i+'">'+(k?"✓ Bilaman":"Bilaman deb belgilash")+'</button></div>';}).join("")+'</div>';
+  h.innerHTML=voiceNote()+'<div class="wgrid">'+t.w.map(function(w,i){var k=S.v[w[1]];return '<div class="wcard'+(k?" known":"")+'"><div class="pic" aria-hidden="true">'+w[0]+'</div><div class="w"><span>'+esc(w[1])+'</span><button class="say" type="button" data-i="'+i+'" aria-label="Tinglash">'+SPK+'</button></div><span class="pl">'+LX.formLabel.charAt(0).toUpperCase()+LX.formLabel.slice(1)+': '+esc(w[2])+'</span><span class="uz">'+esc(w[3])+'</span><span class="exs">'+esc(w[4])+'</span><button class="btn '+(k?"":"ghost ")+'sm" type="button" data-k="'+i+'">'+(k?"✓ Bilaman":"Bilaman deb belgilash")+'</button></div>';}).join("")+'</div>';
+  pagify(h.querySelector(".wgrid"),8,"w"+t.id);
   h.querySelectorAll("[data-i]").forEach(function(b){b.onclick=function(){var w=t.w[+b.dataset.i];say(w[1]+". "+w[4]);};});
   h.querySelectorAll("[data-k]").forEach(function(b){b.onclick=function(){var w=t.w[+b.dataset.k];if(S.v[w[1]]){delete S.v[w[1]];save();}else{S.v[w[1]]=1;srMark(w,true);}vList(h,t);};});
 }
