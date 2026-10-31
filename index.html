@@ -319,6 +319,9 @@ main>.flagframe{margin-top:10px}
 .pgnav{display:flex;align-items:center;justify-content:center;gap:12px;margin:14px 0 4px}
 .pgnav .pgnum{font-weight:700;font-variant-numeric:tabular-nums;min-width:56px;text-align:center}
 #vtopics[hidden]+.pgnav{display:none}
+.card.ext{gap:10px;border-color:var(--accent)}
+.ext-row{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.ext-dir{min-width:170px;font-size:.82rem;font-weight:700;color:var(--muted)}
 .pl{display:grid;gap:14px;max-width:720px}
 .pl-q{font-size:1.25rem;font-weight:700}
 .pl-opts{display:grid;gap:8px}
@@ -5544,7 +5547,7 @@ function vVocab(){
   var tot=0,kn=0;VO.forEach(function(t){tot+=t.w.length;kn+=vKnown(t);});
   app.innerHTML='<section class="section-head"><span class="eyebrow">Lugʻat</span><h2>Rasm va ovoz bilan soʻz yodlang</h2><p class="muted">Har bir soʻz '+(LANG==="de"?"artikli, koʻplik shakli":LX.formLabel+" bilan")+', oʻzbekcha tarjimasi va misol gapi bilan. «Bilaman» deb belgilangan soʻzlar saqlanadi.</p></section>'+
   '<div class="card" style="gap:8px"><div class="row between"><b>Yodlangan soʻzlar</b><span style="font-variant-numeric:tabular-nums"><b>'+kn+'</b> / '+tot+'</span></div><div class="meter"><i style="width:'+(kn/tot*100)+'%"></i></div></div>'+
-  srCard()+'<div class="search"><label for="vs">Soʻz qidirish ('+LX.adj+' yoki oʻzbekcha)<input id="vs" type="search" autocomplete="off" placeholder="masalan: Apfel yoki olma"></label></div><div class="hits" id="vhits" aria-live="polite"></div>'+
+  srCard()+'<div class="search"><label for="vs">Istalgan soʻzni qidiring ('+LX.adj+' yoki oʻzbekcha) — saytda boʻlmasa, katta lugʻatlarda ochiladi<input id="vs" type="search" autocomplete="off" placeholder="istalgan soʻz: '+({de:"Apfel",ru:"яблоко",en:"apple",ko:"사과"}[LANG]||"Apfel")+' yoki olma"></label></div><div class="hits" id="vhits" aria-live="polite"></div>'+
   '<div class="grid" id="vtopics">'+(function(){var srt=VO.slice().sort(function(a,b){return LV.indexOf(a.lv)-LV.indexOf(b.lv);});return srt.map(function(t,ii){var k=vKnown(t);
   return '<a class="card topic" href="#v-'+t.id+'"><span class="pic" aria-hidden="true">'+t.pic+'</span><span style="min-width:0"><span class="row" style="gap:6px"><b>'+esc(t.t)+'</b><span class="lvtag">'+t.lv+'</span></span><span class="muted small">'+esc(t.de)+' · '+k+' / '+t.w.length+' soʻz'+(vtDone(t)?' · ✅':'')+'</span></span></a>';}).join("");})()+'</div>';
   pagify(document.getElementById("vtopics"),4,"vt"+LANG);
@@ -5554,9 +5557,21 @@ function vVocab(){
     if(q.length<2){hits.innerHTML="";tp.hidden=false;return;}
     var res=[];VO.forEach(function(t){t.w.forEach(function(w){if(norm(w[1]).indexOf(q)>=0||w[3].toLowerCase().indexOf(inp.value.trim().toLowerCase())>=0)res.push([w,t]);});});
     tp.hidden=res.length>0;
-    hits.innerHTML=res.length?'<p class="muted small">'+res.length+' ta natija</p>'+res.slice(0,40).map(function(r,k){var w=r[0];return '<div class="hit"><span class="pic" aria-hidden="true">'+w[0]+'</span><span style="min-width:0"><span class="w">'+esc(w[1])+'</span> <span class="u">· '+esc(w[3])+'</span><br><span class="u"><i>'+esc(w[4])+'</i></span></span><span class="row" style="gap:6px"><button class="say" type="button" data-h="'+k+'" aria-label="Tinglash">'+SPK+'</button><a class="chip" href="#v-'+r[1].id+'">'+esc(r[1].t)+'</a></span></div>';}).join(""):'<p class="muted">Hech narsa topilmadi.</p>';
+    hits.innerHTML=extDict(inp.value.trim(),res.length)+(res.length?'<p class="muted small">Sayt lugʻatida: '+res.length+' ta natija</p>':'')+res.slice(0,40).map(function(r,k){var w=r[0];return '<div class="hit"><span class="pic" aria-hidden="true">'+w[0]+'</span><span style="min-width:0"><span class="w">'+esc(w[1])+'</span> <span class="u">· '+esc(w[3])+'</span><br><span class="u"><i>'+esc(w[4])+'</i></span></span><span class="row" style="gap:6px"><button class="say" type="button" data-h="'+k+'" aria-label="Tinglash">'+SPK+'</button><a class="chip" href="#v-'+r[1].id+'">'+esc(r[1].t)+'</a></span></div>';}).join("");
     hits.querySelectorAll("[data-h]").forEach(function(b){b.onclick=function(){var w=res[+b.dataset.h][0];say(w[1]+". "+w[4]);};});}
   inp.addEventListener("input",run);run();
+}
+/* External dictionaries: any word not in the course vocabulary opens in big online dictionaries in one tap.
+   Both directions are offered, because a short word cannot be reliably told apart by its letters. */
+var DICT_CODES={de:"de",ru:"ru",en:"en",ko:"ko"};
+function extDict(q,n){
+  if(!q||q.length<2)return "";var L=DICT_CODES[LANG]||"de",e=encodeURIComponent(q);
+  function row(sl,tl,label){return '<div class="ext-row"><span class="ext-dir">'+label+'</span>'+
+    [["Google","https://translate.google.com/?sl="+sl+"&tl="+tl+"&text="+e+"&op=translate"],["Yandex","https://translate.yandex.com/?source_lang="+sl+"&target_lang="+tl+"&text="+e],["Glosbe","https://glosbe.com/"+sl+"/"+tl+"/"+e]]
+    .map(function(x){return '<a class="btn '+(n?'ghost ':'')+'sm" href="'+x[1]+'" target="_blank" rel="noopener">'+x[0]+' ↗</a>';}).join("")+'</div>';}
+  return '<div class="card ext"><b>'+(n?'Katta lugʻatlarda ham koʻring':'«'+esc(q)+'» sayt lugʻatida yoʻq — katta lugʻatlarda oching')+'</b>'+
+    row(L,"uz",LX.adj+" → oʻzbekcha")+row("uz",L,"oʻzbekcha → "+LX.adj)+
+    '<div class="ext-row"><span class="ext-dir">Izohli lugʻat</span><a class="btn ghost sm" href="https://'+L+'.wiktionary.org/wiki/'+e+'" target="_blank" rel="noopener">Wiktionary ↗</a></div></div>';
 }
 function vTopic(id){
   var t=VO.find(function(x){return x.id===id;});if(!t)return vVocab();
